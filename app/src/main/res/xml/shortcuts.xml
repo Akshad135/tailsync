@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Sync Now - Primary shortcut -->
+    <shortcut
+        android:shortcutId="sync_now"
+        android:enabled="true"
+        android:icon="@drawable/ic_sync"
+        android:shortcutShortLabel="@string/shortcut_sync_short"
+        android:shortcutLongLabel="@string/shortcut_sync_long">
+        <intent
+            android:action="com.tailsync.app.action.SHORTCUT_SYNC"
+            android:targetPackage="com.tailsync.app"
+            android:targetClass="com.tailsync.app.ShortcutActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Open Settings -->
+    <shortcut
+        android:shortcutId="open_settings"
+        android:enabled="true"
+        android:icon="@drawable/ic_settings"
+        android:shortcutShortLabel="@string/shortcut_settings_short"
+        android:shortcutLongLabel="@string/shortcut_settings_long">
+        <intent
+            android:action="com.tailsync.app.action.SHORTCUT_SETTINGS"
+            android:targetPackage="com.tailsync.app"
+            android:targetClass="com.tailsync.app.ShortcutActivity" />
+    </shortcut>
+
+    <!-- Connect/Disconnect Toggle -->
+    <shortcut
+        android:shortcutId="toggle_connection"
+        android:enabled="true"
+        android:icon="@drawable/ic_connection"
+        android:shortcutShortLabel="@string/shortcut_connect_short"
+        android:shortcutLongLabel="@string/shortcut_connect_long">
+        <intent
+            android:action="com.tailsync.app.action.SHORTCUT_TOGGLE"
+            android:targetPackage="com.tailsync.app"
+            android:targetClass="com.tailsync.app.ShortcutActivity" />
+    </shortcut>
+
+</shortcuts>

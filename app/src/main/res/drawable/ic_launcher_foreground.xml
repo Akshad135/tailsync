@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Sync arrows icon centered in the safe zone (72dp starting at 18dp) -->
+    <group
+        android:translateX="30"
+        android:translateY="30">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M24,8V2L18,8l6,6V10c6.63,0 12,5.37 12,12 0,2.02 -0.5,3.93 -1.4,5.6l2.92,2.92C39.08,28.04 40,25.12 40,22c0,-8.84 -7.16,-16 -16,-16zm0,28c-6.63,0 -12,-5.37 -12,-12 0,-2.02 0.5,-3.93 1.4,-5.6l-2.92,-2.92C8.92,17.96 8,20.88 8,24c0,8.84 7.16,16 16,16v6l6,-6 -6,-6v4z"/>
+    </group>
+</vector>
