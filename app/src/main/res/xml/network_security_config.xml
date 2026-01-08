@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow cleartext traffic for Tailscale networks -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Tailscale CGNAT range (100.64.0.0/10) -->
+        <domain includeSubdomains="true">100.64.0.0</domain>
+        <!-- Common Tailscale IP patterns -->
+        <domain includeSubdomains="false">100.64.0.1</domain>
+        <domain includeSubdomains="false">100.109.80.25</domain>
+    </domain-config>
+    
+    <!-- Fallback: Allow all cleartext for development -->
+    <!-- Remove this in production if using TLS -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

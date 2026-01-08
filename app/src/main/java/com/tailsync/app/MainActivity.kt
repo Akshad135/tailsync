@@ -159,6 +159,7 @@ fun MainApp(
     val autoConnect by settingsRepository.autoConnect.collectAsState(initial = true)
     val savedLastSyncedText by settingsRepository.lastSyncedText.collectAsState(initial = "")
     val savedLastSyncedTime by settingsRepository.lastSyncedTime.collectAsState(initial = 0L)
+    val clipboardHistory by settingsRepository.clipboardHistory.collectAsState(initial = emptyList())
 
     // Service state
     val service = getMainService()
@@ -168,6 +169,21 @@ fun MainApp(
         ?: remember { mutableStateOf(savedLastSyncedText) }
     val lastSyncedTime by service?.lastSyncedTime?.collectAsState() 
         ?: remember { mutableStateOf(savedLastSyncedTime) }
+    
+    // Error state for dialog
+    val errorTitle by service?.errorTitle?.collectAsState() 
+        ?: remember { mutableStateOf<String?>(null) }
+    val errorDetails by service?.errorDetails?.collectAsState() 
+        ?: remember { mutableStateOf<String?>(null) }
+
+    // Show error dialog when error occurs
+    if (errorTitle != null && errorDetails != null) {
+        com.tailsync.app.ui.components.ErrorDialog(
+            title = errorTitle!!,
+            errorDetails = errorDetails!!,
+            onDismiss = { service?.clearError() }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize()
@@ -180,8 +196,7 @@ fun MainApp(
             composable(Screen.Dashboard.route) {
                 DashboardScreen(
                     connectionState = connectionState,
-                    lastSyncedText = lastSyncedText.ifEmpty { savedLastSyncedText },
-                    lastSyncedTime = if (lastSyncedTime > 0) lastSyncedTime else savedLastSyncedTime,
+                    clipboardHistory = clipboardHistory,
                     onSyncNow = { service?.syncClipboardNow() },
                     onConnect = { service?.connect() },
                     onDisconnect = { service?.disconnect() },

@@ -41,8 +41,16 @@ class MainService : Service() {
     private val _lastSyncedTime = MutableStateFlow(0L)
     val lastSyncedTime: StateFlow<Long> = _lastSyncedTime
 
+    // Error state for dialog
+    private val _errorTitle = MutableStateFlow<String?>(null)
+    val errorTitle: StateFlow<String?> = _errorTitle
+    
+    private val _errorDetails = MutableStateFlow<String?>(null)
+    val errorDetails: StateFlow<String?> = _errorDetails
+
     private var isUpdatingClipboard = false
     private var lastSentContent: String = ""
+    private var lastReceivedContent: String = ""  // Track received content to prevent echo
 
     inner class LocalBinder : Binder() {
         fun getService(): MainService = this@MainService
@@ -132,42 +140,61 @@ class MainService : Service() {
         webSocketManager.onClipboardReceived = { payload ->
             handleIncomingClipboard(payload)
         }
+        
+        webSocketManager.onError = { title, details ->
+            _errorTitle.value = title
+            _errorDetails.value = details
+        }
+    }
+    
+    fun clearError() {
+        _errorTitle.value = null
+        _errorDetails.value = null
     }
 
     private fun setupClipboardListener() {
         clipboardHelper.addClipboardListener {
             if (!isUpdatingClipboard) {
                 val content = clipboardHelper.readClipboard()
-                if (content != null && content.plainText != lastSentContent) {
+                // Skip if: null, empty, same as last sent, or same as last received (echo prevention)
+                if (content != null && 
+                    content.plainText.isNotBlank() && 
+                    content.plainText != lastSentContent &&
+                    content.plainText != lastReceivedContent) {
                     lastSentContent = content.plainText
                     webSocketManager.sendClipboard(content.plainText, content.htmlText)
-                    updateLastSynced(content.plainText)
+                    updateLastSynced(content.plainText, "phone")
                 }
             }
         }
     }
 
     private fun handleIncomingClipboard(payload: ClipboardPayload) {
+        // Skip empty payloads
+        if (payload.plainText.isBlank()) return
+        
         isUpdatingClipboard = true
+        lastReceivedContent = payload.plainText  // Track to prevent echo
+        lastSentContent = payload.plainText  // Also set as sent to prevent duplicate sends
         try {
             clipboardHelper.writeClipboard(payload.plainText, payload.htmlText)
-            updateLastSynced(payload.plainText)
+            updateLastSynced(payload.plainText, "server")
         } finally {
             // Delay resetting flag to avoid catching our own clipboard change
             scope.launch {
-                delay(500)
+                delay(1000)  // Increased delay for safety
                 isUpdatingClipboard = false
             }
         }
     }
 
-    private fun updateLastSynced(text: String) {
+    private fun updateLastSynced(text: String, source: String = "phone") {
         val time = System.currentTimeMillis()
         _lastSyncedText.value = text
         _lastSyncedTime.value = time
 
         scope.launch {
-            settingsRepository.setLastSynced(text, time)
+            settingsRepository.addToHistory(text, source)
         }
     }
 

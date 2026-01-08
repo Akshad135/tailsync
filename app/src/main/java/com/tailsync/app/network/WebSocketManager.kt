@@ -38,11 +38,12 @@ class WebSocketManager {
     private var serverPort: Int = 8765
     private var reconnectJob: Job? = null
     private var reconnectAttempts = 0
-    private val maxReconnectAttempts = 10
+    private val maxReconnectAttempts = 3  // Only retry 3 times
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     var onClipboardReceived: ((ClipboardPayload) -> Unit)? = null
     var onConnectionChanged: ((ConnectionState) -> Unit)? = null
+    var onError: ((String, String) -> Unit)? = null  // title, details
 
     fun configure(url: String, port: Int) {
         serverUrl = url.trim()
@@ -55,6 +56,7 @@ class WebSocketManager {
             return
         }
 
+        isManualDisconnect = false  // Reset when user initiates connection
         _connectionState.value = ConnectionState.CONNECTING
         onConnectionChanged?.invoke(ConnectionState.CONNECTING)
 
@@ -92,19 +94,40 @@ class WebSocketManager {
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 _connectionState.value = ConnectionState.DISCONNECTED
                 onConnectionChanged?.invoke(ConnectionState.DISCONNECTED)
-                scheduleReconnect()
+                // Only reconnect if not manually disconnected
+                if (!isManualDisconnect) {
+                    scheduleReconnect()
+                }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                t.printStackTrace()
+                val errorMessage = t.message ?: t.toString()
+                val errorDetails = buildString {
+                    appendLine("URL: ${buildWebSocketUrl()}")
+                    appendLine("Error: $errorMessage")
+                    response?.let {
+                        appendLine("Response Code: ${it.code}")
+                        appendLine("Response Message: ${it.message}")
+                    }
+                    appendLine("Stack Trace:")
+                    appendLine(t.stackTraceToString().take(500))
+                }
+                
                 _connectionState.value = ConnectionState.DISCONNECTED
                 onConnectionChanged?.invoke(ConnectionState.DISCONNECTED)
-                scheduleReconnect()
+                
+                // Only auto-reconnect if not manually disconnected
+                if (!isManualDisconnect) {
+                    scheduleReconnect(errorDetails)
+                }
             }
         })
     }
 
+    private var isManualDisconnect = false
+
     fun disconnect() {
+        isManualDisconnect = true
         reconnectJob?.cancel()
         reconnectAttempts = maxReconnectAttempts // Prevent auto-reconnect
         webSocket?.close(1000, "User disconnected")
@@ -133,8 +156,21 @@ class WebSocketManager {
         return "ws://$cleanUrl:$serverPort/ws"
     }
 
-    private fun scheduleReconnect() {
-        if (reconnectAttempts >= maxReconnectAttempts) return
+    private var lastErrorDetails: String = ""
+
+    private fun scheduleReconnect(errorDetails: String? = null) {
+        if (errorDetails != null) {
+            lastErrorDetails = errorDetails
+        }
+        
+        if (reconnectAttempts >= maxReconnectAttempts) {
+            // Max attempts reached, report error
+            onError?.invoke(
+                "Connection Failed",
+                "Failed to connect after $maxReconnectAttempts attempts.\n\n$lastErrorDetails"
+            )
+            return
+        }
         if (serverUrl.isEmpty()) return
 
         reconnectJob?.cancel()
@@ -142,8 +178,8 @@ class WebSocketManager {
             _connectionState.value = ConnectionState.RECONNECTING
             onConnectionChanged?.invoke(ConnectionState.RECONNECTING)
 
-            // Exponential backoff: 1s, 2s, 4s, 8s, ... up to 60s
-            val delay = minOf(1000L * (1 shl reconnectAttempts), 60000L)
+            // Exponential backoff: 1s, 2s, 4s
+            val delay = minOf(1000L * (1 shl reconnectAttempts), 4000L)
             reconnectAttempts++
             delay(delay)
 
