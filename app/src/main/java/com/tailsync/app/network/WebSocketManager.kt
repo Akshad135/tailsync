@@ -56,6 +56,11 @@ class WebSocketManager {
             return
         }
 
+        // Close existing connection if any (prevent multiple connections)
+        webSocket?.close(1000, "Reconnecting")
+        webSocket = null
+        reconnectJob?.cancel()
+
         isManualDisconnect = false  // Reset when user initiates connection
         _connectionState.value = ConnectionState.CONNECTING
         onConnectionChanged?.invoke(ConnectionState.CONNECTING)

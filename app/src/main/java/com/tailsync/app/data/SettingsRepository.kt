@@ -27,7 +27,7 @@ class SettingsRepository(private val context: Context) {
         private val LAST_SYNCED_TIME = longPreferencesKey("last_synced_time")
         private val CLIPBOARD_HISTORY = stringPreferencesKey("clipboard_history")
 
-        const val DEFAULT_PORT = 8765
+        const val DEFAULT_PORT = 8000
         const val DEFAULT_URL = ""
         const val MAX_HISTORY_ITEMS = 5
     }

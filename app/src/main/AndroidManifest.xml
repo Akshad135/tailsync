@@ -45,17 +45,17 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
-        <!-- Shortcut Handler Activity (for Edge Panel / Routines) -->
+        <!-- Clipboard Sync Activity - reads clipboard in foreground context -->
+        <!-- This is the KDE Connect approach: invisible foreground window -->
         <activity
-            android:name=".ShortcutActivity"
+            android:name=".ClipboardSyncActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.NoDisplay"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:excludeFromRecents="true"
+            android:taskAffinity=""
             android:noHistory="true">
             <intent-filter>
-                <action android:name="com.tailsync.app.action.SHORTCUT_SYNC" />
-                <action android:name="com.tailsync.app.action.SHORTCUT_SETTINGS" />
-                <action android:name="com.tailsync.app.action.SHORTCUT_TOGGLE" />
+                <action android:name="com.tailsync.app.action.SYNC_CLIPBOARD" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
@@ -66,21 +66,6 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
-
-        <!-- Quick Settings Tile -->
-        <service
-            android:name=".service.SyncTileService"
-            android:exported="true"
-            android:icon="@drawable/ic_sync"
-            android:label="@string/tile_label"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.service.quicksettings.ACTIVE_TILE"
-                android:value="true" />
-        </service>
 
         <!-- Boot Receiver -->
         <receiver
