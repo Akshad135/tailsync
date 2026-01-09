@@ -106,12 +106,18 @@ class SettingsRepository(private val context: Context) {
             // Keep only last MAX_HISTORY_ITEMS
             val trimmed = history.take(MAX_HISTORY_ITEMS)
             
-            // Save as JSON
+        // Save as JSON
             preferences[CLIPBOARD_HISTORY] = historyToJson(trimmed)
             
             // Also update last synced for backward compatibility
             preferences[LAST_SYNCED_TEXT] = text
             preferences[LAST_SYNCED_TIME] = System.currentTimeMillis()
+        }
+    }
+
+    suspend fun clearHistory() {
+        context.dataStore.edit { preferences ->
+            preferences[CLIPBOARD_HISTORY] = "[]"
         }
     }
 

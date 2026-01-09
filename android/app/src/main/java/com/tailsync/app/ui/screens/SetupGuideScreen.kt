@@ -10,20 +10,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.tailsync.app.ui.theme.GlassBorder
-import com.tailsync.app.ui.theme.StatusConnected
-import com.tailsync.app.ui.theme.TailSyncPrimary
+import com.tailsync.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +31,7 @@ fun SetupGuideScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val adbCommand = "adb shell cmd appops set com.tailsync.app READ_CLIPBOARD allow"
 
     Column(
@@ -41,10 +41,12 @@ fun SetupGuideScreen(
     ) {
         // Top App Bar
         TopAppBar(
-            title = { Text("Setup Guide") },
+            title = { 
+                Text("Setup Guide", style = MaterialTheme.typography.titleLarge) 
+            },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -56,23 +58,17 @@ fun SetupGuideScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 20.dp)
         ) {
             // Intro Card
-            GlassmorphicCard(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+            GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Outlined.Info,
+                            Icons.Rounded.Info,
                             contentDescription = null,
                             tint = TailSyncPrimary,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
@@ -83,52 +79,27 @@ fun SetupGuideScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Starting with Android 10, apps cannot read the clipboard in the background for privacy reasons. To enable clipboard sync, you need to grant special permission via ADB.",
+                        text = "Android 10+ restricts background clipboard access for privacy. Grant permission via ADB to enable sync.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Step 1
-            StepCard(
-                stepNumber = 1,
-                title = "Enable Developer Options",
-                description = "Go to Settings → About Phone → Tap 'Build Number' 7 times"
-            )
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Step 2
-            StepCard(
-                stepNumber = 2,
-                title = "Enable USB Debugging",
-                description = "Go to Settings → Developer Options → Enable 'USB Debugging'"
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Step 3
-            StepCard(
-                stepNumber = 3,
-                title = "Connect to Computer",
-                description = "Connect your phone to a computer with ADB installed via USB cable"
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
+            // Steps
+            StepCard(1, "Enable Developer Options", "Settings → About Phone → Tap 'Build Number' 7 times")
+            Spacer(modifier = Modifier.height(12.dp))
+            StepCard(2, "Enable USB Debugging", "Settings → Developer Options → Enable 'USB Debugging'")
+            Spacer(modifier = Modifier.height(12.dp))
+            StepCard(3, "Connect to Computer", "Connect phone to computer with ADB via USB")
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Step 4: ADB Command
-            GlassmorphicCard(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+            GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         StepNumberBadge(number = 4)
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
@@ -141,7 +112,7 @@ fun SetupGuideScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Run the following command in your terminal/command prompt:",
+                        text = "Run this command in your terminal:",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -153,11 +124,10 @@ fun SetupGuideScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp)),
-                        color = MaterialTheme.colorScheme.surfaceVariant
+                        color = DarkSurfaceElevated,
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
                             Text(
                                 text = adbCommand,
                                 style = MaterialTheme.typography.bodySmall.copy(
@@ -166,18 +136,20 @@ fun SetupGuideScreen(
                                 color = StatusConnected
                             )
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             OutlinedButton(
                                 onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     val clip = ClipData.newPlainText("ADB Command", adbCommand)
                                     clipboard.setPrimaryClip(clip)
                                     Toast.makeText(context, "Command copied!", Toast.LENGTH_SHORT).show()
                                 },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
                             ) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = null)
+                                Icon(Icons.Rounded.ContentCopy, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Copy Command")
                             }
@@ -186,31 +158,20 @@ fun SetupGuideScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Step 5
-            StepCard(
-                stepNumber = 5,
-                title = "Verify & Enjoy",
-                description = "After running the command, clipboard sync will work in the background. You can disconnect USB and disable USB debugging."
-            )
+            StepCard(5, "Verify & Enjoy", "Clipboard sync will now work in the background. You can disconnect USB and disable debugging.")
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Tips Card
-            GlassmorphicCard(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+            GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Outlined.Lightbulb,
+                            Icons.Rounded.Lightbulb,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
+                            tint = TailSyncSecondary,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -222,13 +183,13 @@ fun SetupGuideScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    BulletPoint("The permission persists until you factory reset or reinstall the app")
-                    BulletPoint("If using Wireless ADB, the command works the same way")
-                    BulletPoint("Add the Quick Settings tile for easy clipboard sync")
+                    BulletPoint("Permission persists until factory reset or app reinstall")
+                    BulletPoint("Wireless ADB works the same way")
+                    BulletPoint("Add Quick Settings tile for easy access")
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }
@@ -239,9 +200,7 @@ private fun StepCard(
     title: String,
     description: String
 ) {
-    GlassmorphicCard(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.Top
@@ -269,12 +228,10 @@ private fun StepCard(
 private fun StepNumberBadge(number: Int) {
     Surface(
         modifier = Modifier.size(32.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = TailSyncPrimary.copy(alpha = 0.2f)
+        shape = RoundedCornerShape(10.dp),
+        color = TailSyncPrimary.copy(alpha = 0.15f)
     ) {
-        Box(
-            contentAlignment = Alignment.Center
-        ) {
+        Box(contentAlignment = Alignment.Center) {
             Text(
                 text = number.toString(),
                 style = MaterialTheme.typography.titleMedium,

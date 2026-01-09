@@ -11,8 +11,8 @@ android {
         applicationId = "com.tailsync.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.2.3"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -49,6 +49,13 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    // Generate universal APK (single APK for all architectures)
+    splits {
+        abi {
+            isEnable = false
         }
     }
 }

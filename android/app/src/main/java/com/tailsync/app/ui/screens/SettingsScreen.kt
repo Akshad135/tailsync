@@ -5,27 +5,26 @@ import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.tailsync.app.ui.components.SnackbarState
 import com.tailsync.app.ui.components.TailSyncSnackbarHost
 import com.tailsync.app.ui.components.rememberSnackbarState
-import com.tailsync.app.ui.theme.StatusConnected
-import com.tailsync.app.ui.theme.StatusDisconnected
-import kotlinx.coroutines.delay
+import com.tailsync.app.ui.theme.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,33 +34,24 @@ fun SettingsScreen(
     serverPort: Int,
     autoConnect: Boolean,
     isServiceRunning: Boolean,
-    onServerUrlChange: (String) -> Unit,
-    onServerPortChange: (Int) -> Unit,
+    onSaveSettings: (String, Int) -> Unit,
     onAutoConnectChange: (Boolean) -> Unit,
-    onStartService: () -> Unit,
-    onStopService: () -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
     val snackbarState = rememberSnackbarState()
     
     var urlInput by remember(serverUrl) { mutableStateOf(serverUrl) }
     var portInput by remember(serverPort) { mutableStateOf(serverPort.toString()) }
     var isSaving by remember { mutableStateOf(false) }
-    var isTogglingService by remember { mutableStateOf(false) }
     
-    // Check battery optimization status - refresh on each recomposition
+    // Battery optimization status
     var isBatteryOptimized by remember { mutableStateOf(isBatteryOptimizationEnabled(context)) }
     
-    // Refresh battery status when screen is visible (using DisposableEffect as a workaround)
-    DisposableEffect(Unit) {
-        isBatteryOptimized = isBatteryOptimizationEnabled(context)
-        onDispose { }
-    }
-    
-    // Also refresh on window focus changes
+    // Refresh battery status on resume
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -81,10 +71,10 @@ fun SettingsScreen(
         ) {
             // Top App Bar
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text("Settings", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -96,42 +86,31 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = 20.dp)
             ) {
-                // Server Configuration Section
-                Text(
-                    text = "SERVER",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
-
-                GlassmorphicCard(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        // Server URL
+                // Server Section
+                SectionHeader(title = "SERVER")
+                
+                GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(20.dp)) {
                         OutlinedTextField(
                             value = urlInput,
                             onValueChange = { urlInput = it },
                             label = { Text("Tailscale IP Address") },
                             placeholder = { Text("e.g., 100.64.0.1") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Dns, contentDescription = null)
-                            },
+                            leadingIcon = { Icon(Icons.Rounded.Dns, contentDescription = null) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                                focusedBorderColor = TailSyncPrimary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                cursorColor = TailSyncPrimary
                             )
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Port
                         OutlinedTextField(
                             value = portInput,
                             onValueChange = { input ->
@@ -141,25 +120,24 @@ fun SettingsScreen(
                             },
                             label = { Text("Port") },
                             placeholder = { Text("8765") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Tag, contentDescription = null)
-                            },
+                            leadingIcon = { Icon(Icons.Rounded.Tag, contentDescription = null) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                                focusedBorderColor = TailSyncPrimary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                cursorColor = TailSyncPrimary
                             )
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        // Save Button with feedback
                         Button(
                             onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 scope.launch {
-                                    // Validate inputs
                                     if (urlInput.isBlank()) {
                                         snackbarState.showError("Server URL cannot be empty")
                                         return@launch
@@ -173,22 +151,19 @@ fun SettingsScreen(
                                     
                                     isSaving = true
                                     try {
-                                        onServerUrlChange(urlInput)
-                                        onServerPortChange(port)
-                                        delay(300) // Brief delay for visual feedback
+                                        // Save both settings at once
+                                        onSaveSettings(urlInput, port)
                                         snackbarState.showSuccess("Configuration saved!")
                                     } catch (e: Exception) {
-                                        snackbarState.showError(
-                                            "Failed to save configuration",
-                                            e.message ?: e.toString()
-                                        )
+                                        snackbarState.showError("Failed to save", e.message ?: e.toString())
                                     } finally {
                                         isSaving = false
                                     }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !isSaving
+                            enabled = !isSaving,
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             if (isSaving) {
                                 CircularProgressIndicator(
@@ -199,7 +174,7 @@ fun SettingsScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Saving...")
                             } else {
-                                Icon(Icons.Default.Save, contentDescription = null)
+                                Icon(Icons.Rounded.Save, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Save Configuration")
                             }
@@ -210,63 +185,51 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Behavior Section
-                Text(
-                    text = "BEHAVIOR",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
-
-                GlassmorphicCard(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column {
-                        // Auto-connect Toggle
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Auto-connect on Boot",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Start service when device boots",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = autoConnect,
-                                onCheckedChange = { enabled ->
-                                    onAutoConnectChange(enabled)
-                                    snackbarState.showSuccess(
-                                        if (enabled) "Auto-connect enabled" else "Auto-connect disabled"
-                                    )
-                                }
+                SectionHeader(title = "BEHAVIOR")
+                
+                GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Auto-connect on Boot",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Start service when device boots",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        Switch(
+                            checked = autoConnect,
+                            onCheckedChange = { enabled ->
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onAutoConnectChange(enabled)
+                                snackbarState.showSuccess(
+                                    if (enabled) "Auto-connect enabled" else "Auto-connect disabled"
+                                )
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Battery Optimization Section
-                Text(
-                    text = "BATTERY",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
-
-                GlassmorphicCard(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                // Battery Section
+                SectionHeader(title = "BATTERY")
+                
+                GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -280,11 +243,12 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            
+                            Spacer(modifier = Modifier.height(4.dp))
+                            
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    if (!isBatteryOptimized) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                    if (!isBatteryOptimized) Icons.Rounded.CheckCircle else Icons.Rounded.Warning,
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
                                     tint = if (!isBatteryOptimized) StatusConnected else StatusDisconnected
@@ -292,23 +256,28 @@ fun SettingsScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = if (!isBatteryOptimized) "Unrestricted" else "Restricted",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = if (!isBatteryOptimized) StatusConnected else StatusDisconnected
                                 )
                             }
-                            Text(
-                                text = if (isBatteryOptimized) "Disable to prevent Android from killing the service" else "App is unrestricted from battery optimization",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            
+                            if (isBatteryOptimized) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Disable to keep service running",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
 
-                        // Only show Configure button if battery is restricted
                         if (isBatteryOptimized) {
                             FilledTonalButton(
                                 onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     openBatteryOptimizationSettings(context)
-                                }
+                                },
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Text("Configure")
                             }
@@ -318,31 +287,22 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Info Section
-                Text(
-                    text = "ABOUT",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
-
-                GlassmorphicCard(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        InfoRow(label = "App Version", value = "1.0.0")
+                // About Section
+                SectionHeader(title = "ABOUT")
+                
+                GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        InfoRow(label = "App Version", value = "1.2.3")
                         Spacer(modifier = Modifier.height(12.dp))
                         InfoRow(label = "Package", value = "com.tailsync.app")
                     }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
 
-        // Snackbar at bottom
+        // Snackbar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -354,21 +314,23 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp)
+    )
+}
+
+@Composable
 private fun InfoRow(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -379,19 +341,14 @@ private fun isBatteryOptimizationEnabled(context: Context): Boolean {
 
 private fun openBatteryOptimizationSettings(context: Context) {
     try {
-        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+        context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
             data = Uri.parse("package:${context.packageName}")
-        }
-        context.startActivity(intent)
+        })
     } catch (e: Exception) {
-        // Fallback to general battery settings
         try {
-            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-            context.startActivity(intent)
+            context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         } catch (e2: Exception) {
-            // Final fallback
-            val intent = Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS)
-            context.startActivity(intent)
+            context.startActivity(Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS))
         }
     }
 }

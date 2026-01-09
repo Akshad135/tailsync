@@ -1,90 +1,113 @@
 package com.tailsync.app.ui.theme
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+// =============================================================================
+// Premium Dark Color Scheme - Single Theme, No Light Mode
+// =============================================================================
 private val DarkColorScheme = darkColorScheme(
+    // Primary colors
     primary = TailSyncPrimary,
-    onPrimary = Color.White,
-    primaryContainer = TailSyncPrimaryDark,
-    onPrimaryContainer = Color.White,
+    onPrimary = Color.Black,
+    primaryContainer = TailSyncPrimaryContainer,
+    onPrimaryContainer = TailSyncPrimary,
     
+    // Secondary colors
     secondary = TailSyncSecondary,
     onSecondary = Color.Black,
-    secondaryContainer = TailSyncSecondary.copy(alpha = 0.3f),
+    secondaryContainer = TailSyncSecondary.copy(alpha = 0.15f),
     onSecondaryContainer = TailSyncSecondary,
     
+    // Tertiary colors  
     tertiary = TailSyncTertiary,
     onTertiary = Color.Black,
-    tertiaryContainer = TailSyncTertiary.copy(alpha = 0.3f),
+    tertiaryContainer = TailSyncTertiary.copy(alpha = 0.15f),
     onTertiaryContainer = TailSyncTertiary,
     
+    // Background & Surface
     background = DarkBackground,
     onBackground = DarkOnBackground,
-    
     surface = DarkSurface,
     onSurface = DarkOnSurface,
-    
     surfaceVariant = DarkSurfaceVariant,
     onSurfaceVariant = DarkOnSurfaceVariant,
     
-    outline = GlassBorder,
-    outlineVariant = GlassBorder.copy(alpha = 0.5f),
+    // Other colors
+    outline = DarkOutline,
+    outlineVariant = DarkOutline.copy(alpha = 0.5f),
+    error = StatusDisconnected,
+    onError = Color.Black,
+    errorContainer = StatusDisconnected.copy(alpha = 0.2f),
+    onErrorContainer = StatusDisconnected
+)
+
+// =============================================================================
+// Animation Specs - Apple-quality smooth physics
+// =============================================================================
+object TailSyncAnimation {
+    // Standard spring - smooth and responsive
+    val Standard = spring<Float>(
+        dampingRatio = Spring.DampingRatioMediumBouncy,
+        stiffness = Spring.StiffnessMedium
+    )
     
-    error = Color(0xFFCF6679),
-    onError = Color.Black
-)
+    // Gentle spring - for subtle movements
+    val Gentle = spring<Float>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessLow
+    )
+    
+    // Snappy spring - for quick feedback
+    val Snappy = spring<Float>(
+        dampingRatio = Spring.DampingRatioLowBouncy,
+        stiffness = Spring.StiffnessHigh
+    )
+    
+    // Duration constants (ms)
+    const val FAST = 150
+    const val MEDIUM = 300
+    const val SLOW = 500
+    
+    // Stagger delay for list animations
+    const val STAGGER_DELAY = 50L
+}
 
-// Light theme (optional, but keeping for completeness)
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-)
-
+// =============================================================================
+// Main Theme Composable
+// =============================================================================
 @Composable
 fun TailSyncTheme(
-    darkTheme: Boolean = true, // Force dark theme by default
-    dynamicColor: Boolean = false, // Disable dynamic color to use our custom scheme
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
     val view = LocalView.current
+    
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
+            // Transparent system bars for edge-to-edge
             window.statusBarColor = Color.Transparent.toArgb()
             window.navigationBarColor = Color.Transparent.toArgb()
+            
+            // Light icons on dark background
             WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !darkTheme
-                isAppearanceLightNavigationBars = !darkTheme
+                isAppearanceLightStatusBars = false
+                isAppearanceLightNavigationBars = false
             }
         }
     }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = DarkColorScheme,
         typography = Typography,
         content = content
     )

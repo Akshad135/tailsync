@@ -198,8 +198,12 @@ fun MainApp(
                     connectionState = connectionState,
                     clipboardHistory = clipboardHistory,
                     onSyncNow = { service?.syncClipboardNow() },
-                    onConnect = { service?.connect() },
+                    onConnect = { 
+                        // Pass current URL/port directly to avoid stale DataStore reads
+                        service?.connectWithUrl(serverUrl, serverPort)
+                    },
                     onDisconnect = { service?.disconnect() },
+                    onClearHistory = { scope.launch { settingsRepository.clearHistory() } },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToSetup = { navController.navigate(Screen.SetupGuide.route) }
                 )
@@ -211,17 +215,15 @@ fun MainApp(
                     serverPort = serverPort,
                     autoConnect = autoConnect,
                     isServiceRunning = service != null,
-                    onServerUrlChange = { url ->
-                        scope.launch { settingsRepository.setServerUrl(url) }
-                    },
-                    onServerPortChange = { port ->
-                        scope.launch { settingsRepository.setServerPort(port) }
+                    onSaveSettings = { url, port ->
+                        scope.launch {
+                            settingsRepository.setServerUrl(url)
+                            settingsRepository.setServerPort(port)
+                        }
                     },
                     onAutoConnectChange = { enabled ->
                         scope.launch { settingsRepository.setAutoConnect(enabled) }
                     },
-                    onStartService = onStartService,
-                    onStopService = onStopService,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

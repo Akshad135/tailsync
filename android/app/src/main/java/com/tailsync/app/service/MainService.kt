@@ -3,7 +3,6 @@ package com.tailsync.app.service
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
-import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
@@ -48,10 +47,14 @@ class MainService : Service() {
     
     private val _errorDetails = MutableStateFlow<String?>(null)
     val errorDetails: StateFlow<String?> = _errorDetails
+    
+    // Message state for snackbar (non-error feedback)
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message
 
     private var isUpdatingClipboard = false
     private var lastSentContent: String = ""
-    private var lastReceivedContent: String = ""  // Track received content to prevent echo
+    private var lastReceivedContent: String = ""
 
     inner class LocalBinder : Binder() {
         fun getService(): MainService = this@MainService
@@ -72,13 +75,12 @@ class MainService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Always ensure foreground mode for any action
         if (!isForegroundStarted) {
             startForegroundService()
         }
         
         when (intent?.action) {
-            ACTION_START -> { /* Already handled above */ }
+            ACTION_START -> { }
             ACTION_STOP -> {
                 disconnect()
                 stopSelf()
@@ -109,6 +111,8 @@ class MainService : Service() {
         scope.launch {
             val autoConnect = settingsRepository.autoConnect.first()
             if (autoConnect) {
+                // Small delay to let DataStore initialize
+                delay(500)
                 connect()
             }
         }
@@ -121,7 +125,6 @@ class MainService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Sync action - launch ClipboardSyncActivity to read clipboard in foreground
         val syncIntent = Intent(this, ClipboardSyncActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
@@ -134,7 +137,6 @@ class MainService : Service() {
                           _connectionState.value == ConnectionState.CONNECTING ||
                           _connectionState.value == ConnectionState.RECONNECTING
 
-        // Dynamic Connect/Disconnect action
         val toggleIntent = Intent(this, MainService::class.java).apply {
             action = if (isConnected) ACTION_DISCONNECT else ACTION_CONNECT
         }
@@ -190,12 +192,15 @@ class MainService : Service() {
         _errorTitle.value = null
         _errorDetails.value = null
     }
+    
+    fun clearMessage() {
+        _message.value = null
+    }
 
     private fun setupClipboardListener() {
         clipboardHelper.addClipboardListener {
             if (!isUpdatingClipboard) {
                 val content = clipboardHelper.readClipboard()
-                // Skip if: null, empty, same as last sent, or same as last received (echo prevention)
                 if (content != null && 
                     content.plainText.isNotBlank() && 
                     content.plainText != lastSentContent &&
@@ -209,19 +214,17 @@ class MainService : Service() {
     }
 
     private fun handleIncomingClipboard(payload: ClipboardPayload) {
-        // Skip empty payloads
         if (payload.plainText.isBlank()) return
         
         isUpdatingClipboard = true
-        lastReceivedContent = payload.plainText  // Track to prevent echo
-        lastSentContent = payload.plainText  // Also set as sent to prevent duplicate sends
+        lastReceivedContent = payload.plainText
+        lastSentContent = payload.plainText
         try {
             clipboardHelper.writeClipboard(payload.plainText, payload.htmlText)
             updateLastSynced(payload.plainText, "server")
         } finally {
-            // Delay resetting flag to avoid catching our own clipboard change
             scope.launch {
-                delay(1000)  // Increased delay for safety
+                delay(1000)
                 isUpdatingClipboard = false
             }
         }
@@ -237,31 +240,37 @@ class MainService : Service() {
         }
     }
 
+    /**
+     * Connect using URL/port from DataStore
+     */
     fun connect() {
         scope.launch {
             val url = settingsRepository.serverUrl.first()
             val port = settingsRepository.serverPort.first()
-            
-            if (url.isEmpty()) {
-                android.widget.Toast.makeText(
-                    this@MainService,
-                    "Please configure server URL in Settings",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-                // Force state update to trigger UI refresh
-                _connectionState.value = ConnectionState.DISCONNECTED
-                updateNotification()
-                return@launch
-            }
-            
-            // Force CONNECTING state to trigger UI updates
-            _connectionState.value = ConnectionState.CONNECTING
-            updateNotification()
-            
-            webSocketManager.configure(url, port)
-            webSocketManager.resetReconnectAttempts()
-            webSocketManager.connect()
+            connectWithUrl(url, port)
         }
+    }
+    
+    /**
+     * Connect with explicit URL and port (bypasses DataStore read)
+     * This is used after saving settings to ensure we use the new values
+     */
+    fun connectWithUrl(url: String, port: Int) {
+        if (url.isEmpty()) {
+            // Emit error to UI via state (NOT Toast)
+            _errorTitle.value = "Server not configured"
+            _errorDetails.value = "Please enter the Tailscale IP address in Settings"
+            _connectionState.value = ConnectionState.DISCONNECTED
+            updateNotification()
+            return
+        }
+        
+        _connectionState.value = ConnectionState.CONNECTING
+        updateNotification()
+        
+        webSocketManager.configure(url, port)
+        webSocketManager.resetReconnectAttempts()
+        webSocketManager.connect()
     }
 
     fun disconnect() {
@@ -270,17 +279,12 @@ class MainService : Service() {
 
     fun syncClipboardNow() {
         scope.launch {
-            // If not connected, connect first and wait
             if (_connectionState.value != ConnectionState.CONNECTED) {
                 val url = settingsRepository.serverUrl.first()
                 val port = settingsRepository.serverPort.first()
                 
                 if (url.isEmpty()) {
-                    android.widget.Toast.makeText(
-                        this@MainService,
-                        "Server not configured. Open app to set up.",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    _message.value = "Server not configured"
                     return@launch
                 }
                 
@@ -288,7 +292,6 @@ class MainService : Service() {
                 webSocketManager.resetReconnectAttempts()
                 webSocketManager.connect()
                 
-                // Wait for connection (max 3 seconds)
                 var waited = 0
                 while (_connectionState.value != ConnectionState.CONNECTED && waited < 3000) {
                     delay(100)
@@ -296,53 +299,31 @@ class MainService : Service() {
                 }
                 
                 if (_connectionState.value != ConnectionState.CONNECTED) {
-                    android.widget.Toast.makeText(
-                        this@MainService,
-                        "Could not connect to server",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    _message.value = "Could not connect to server"
                     return@launch
                 }
             }
             
-            // Now sync
             val content = clipboardHelper.readClipboard()
             if (content != null && content.plainText.isNotBlank()) {
                 lastSentContent = content.plainText
                 webSocketManager.sendClipboard(content.plainText, content.htmlText)
                 updateLastSynced(content.plainText, "phone")
-                android.widget.Toast.makeText(
-                    this@MainService,
-                    "Clipboard synced!",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+                _message.value = "Clipboard synced!"
             } else {
-                android.widget.Toast.makeText(
-                    this@MainService,
-                    "Clipboard is empty",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+                _message.value = "Clipboard is empty"
             }
         }
     }
 
-    /**
-     * Sync clipboard content that was already read by ClipboardSyncActivity.
-     * This bypasses the background clipboard restriction.
-     */
     private fun syncClipboardContent(plainText: String, htmlText: String?) {
         scope.launch {
-            // Connect if not connected
             if (_connectionState.value != ConnectionState.CONNECTED) {
                 val url = settingsRepository.serverUrl.first()
                 val port = settingsRepository.serverPort.first()
                 
                 if (url.isEmpty()) {
-                    android.widget.Toast.makeText(
-                        this@MainService,
-                        "Server not configured",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    _message.value = "Server not configured"
                     return@launch
                 }
                 
@@ -350,7 +331,6 @@ class MainService : Service() {
                 webSocketManager.resetReconnectAttempts()
                 webSocketManager.connect()
                 
-                // Wait for connection (max 3 seconds)
                 var waited = 0
                 while (_connectionState.value != ConnectionState.CONNECTED && waited < 3000) {
                     delay(100)
@@ -358,26 +338,17 @@ class MainService : Service() {
                 }
                 
                 if (_connectionState.value != ConnectionState.CONNECTED) {
-                    android.widget.Toast.makeText(
-                        this@MainService,
-                        "Could not connect",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    _message.value = "Could not connect"
                     return@launch
                 }
             }
             
-            // Send the clipboard
             lastSentContent = plainText
-            lastReceivedContent = plainText  // Prevent echo
+            lastReceivedContent = plainText
             webSocketManager.sendClipboard(plainText, htmlText)
             updateLastSynced(plainText, "phone")
             
-            android.widget.Toast.makeText(
-                this@MainService,
-                "Clipboard synced!",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            _message.value = "Clipboard synced!"
         }
     }
 

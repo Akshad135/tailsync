@@ -2,34 +2,43 @@ package com.tailsync.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary Colors - Sleek Dark Theme
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// =============================================================================
+// Premium Material You Dark Theme Colors
+// Inspired by Samsung One UI / Google Material You with Apple-level polish
+// =============================================================================
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Primary Brand Colors
+val TailSyncPrimary = Color(0xFF8AB4F8)        // Material You Blue (soft, premium)
+val TailSyncPrimaryDark = Color(0xFF669DF6)    // Darker blue for pressed states
+val TailSyncPrimaryContainer = Color(0xFF004A77) // Container background
 
-// Custom TailSync Colors
-val TailSyncPrimary = Color(0xFF7C4DFF)      // Vibrant purple
-val TailSyncPrimaryDark = Color(0xFF651FFF)   // Deeper purple
-val TailSyncSecondary = Color(0xFF00E5FF)     // Cyan accent
-val TailSyncTertiary = Color(0xFF69F0AE)      // Mint green
+// Secondary / Accent Colors
+val TailSyncSecondary = Color(0xFF80CBC4)      // Teal accent (elegant)
+val TailSyncTertiary = Color(0xFFA8DAB5)       // Soft green
 
-// Dark Theme Colors
-val DarkBackground = Color(0xFF0D0D0F)        // Near black
-val DarkSurface = Color(0xFF1A1A1E)           // Card background
-val DarkSurfaceVariant = Color(0xFF252529)    // Elevated surface
-val DarkOnBackground = Color(0xFFF5F5F7)      // Light text
-val DarkOnSurface = Color(0xFFE8E8EA)         // Surface text
-val DarkOnSurfaceVariant = Color(0xFF9E9EA2)  // Muted text
+// Background Colors - True dark with subtle elevation
+val DarkBackground = Color(0xFF0F0F0F)         // Near-black, OLED friendly
+val DarkSurface = Color(0xFF1A1A1A)            // Card surfaces
+val DarkSurfaceVariant = Color(0xFF232323)     // Elevated surfaces
+val DarkSurfaceElevated = Color(0xFF2A2A2A)    // Highest elevation
 
-// Status Colors
-val StatusConnected = Color(0xFF69F0AE)       // Green
-val StatusDisconnected = Color(0xFFFF5252)    // Red
-val StatusConnecting = Color(0xFFFFD740)      // Amber
+// Text Colors - Optimized contrast for readability
+val DarkOnBackground = Color(0xFFF5F5F5)       // Primary text - off-white
+val DarkOnSurface = Color(0xFFE8E8E8)          // Surface text
+val DarkOnSurfaceVariant = Color(0xFF9E9E9E)   // Secondary/muted text
+val DarkOutline = Color(0xFF3D3D3D)            // Borders and dividers
 
-// Glassmorphism Colors
-val GlassBackground = Color(0x1AFFFFFF)       // 10% white
-val GlassBorder = Color(0x33FFFFFF)           // 20% white
+// Status Colors - Vibrant but refined
+val StatusConnected = Color(0xFF81C784)        // Green - success
+val StatusDisconnected = Color(0xFFE57373)     // Red - error  
+val StatusConnecting = Color(0xFFFFD54F)       // Amber - pending
+val StatusInfo = Color(0xFF64B5F6)             // Blue - info
+
+// Glassmorphism / Frosted glass effects
+val GlassBackground = Color(0x14FFFFFF)        // 8% white overlay
+val GlassBorder = Color(0x29FFFFFF)            // 16% white border
+val GlassHighlight = Color(0x0DFFFFFF)         // 5% white shine
+
+// Gradient accent colors for premium buttons
+val GradientStart = Color(0xFF7C4DFF)          // Purple
+val GradientEnd = Color(0xFF448AFF)            // Blue
