@@ -47,27 +47,47 @@ class TailSyncClient:
             sys.exit(0)
 
     def get_config_from_user(self):
-        import tkinter as tk
-        from tkinter import simpledialog
-        
-        root = tk.Tk()
-        root.withdraw()
-        
-        server_ip = simpledialog.askstring("TailSync", "Enter Tailscale IP:", parent=root)
-        if not server_ip: sys.exit(0)
-        port = simpledialog.askstring("TailSync", "Enter Port (Default 8000):", initialvalue="8000", parent=root)
-        if not port: sys.exit(0)
-        
-        config_data = {"server_ip": server_ip.strip(), "port": port.strip()}
-        
-        try:
-            with open(CONFIG_FILE, "w", encoding='utf-8') as f:
-                json.dump(config_data, f, indent=4)
-        except Exception:
-            pass
+            import tkinter as tk
+            from tkinter import simpledialog
             
-        root.destroy()
-        return config_data
+            root = tk.Tk()
+            root.withdraw()
+            
+            # 1. Ask for Protocol (Secure vs Insecure)
+            secure_input = simpledialog.askstring(
+                "TailSync Setup", 
+                "Select Connection Type:\n1. Secure (WSS) - For https/vpn urls\n2. Standard (WS) - For direct IPs\n\nEnter 1 or 2:", 
+                initialvalue="1",
+                parent=root
+            )
+            if not secure_input: sys.exit(0)
+            
+            # Determine protocol based on input
+            use_secure = True if secure_input.strip() == "1" else False
+
+            # 2. Ask for IP
+            server_ip = simpledialog.askstring("TailSync Setup", "Enter Tailscale IP or Domain:", parent=root)
+            if not server_ip: sys.exit(0)
+
+            # 3. Ask for Port
+            port = simpledialog.askstring("TailSync Setup", "Enter Port (Default 8000):", initialvalue="8000", parent=root)
+            if not port: sys.exit(0)
+            
+            # Save all 3 values to config
+            config_data = {
+                "server_ip": server_ip.strip(), 
+                "port": port.strip(),
+                "use_secure": use_secure
+            }
+            
+            try:
+                with open(CONFIG_FILE, "w", encoding='utf-8') as f:
+                    json.dump(config_data, f, indent=4)
+            except Exception:
+                pass
+                
+            root.destroy()
+            return config_data
 
     def load_config(self):
         if not os.path.exists(CONFIG_FILE):
@@ -79,11 +99,24 @@ class TailSyncClient:
             return self.get_config_from_user()
 
     def refresh_connection_info(self):
-        config = self.load_config()
-        server_ip = config.get("server_ip")
-        port = config.get("port")
-        self.debounce_delay = config.get("debounce_delay", 0.5)
-        self.ws_url = f"ws://{server_ip}:{port}/ws"
+            config = self.load_config()
+            
+            server_ip = config.get("server_ip", "").strip()
+            port = config.get("port", "8000").strip()
+            use_secure = config.get("use_secure", False)
+            
+            self.debounce_delay = config.get("debounce_delay", 1)
+
+            # Clean up IP if user accidentally pasted http:// or ws://
+            if "://" in server_ip:
+                server_ip = server_ip.split("://")[-1]
+                if server_ip.endswith("/"):
+                    server_ip = server_ip[:-1]
+
+            # Select protocol based on the user's choice
+            protocol = "wss" if use_secure else "ws"
+            
+            self.ws_url = f"{protocol}://{server_ip}:{port}/ws"
 
     def create_image(self, color, filled=True):
         image = Image.new('RGBA', (64, 64), (255, 255, 255, 0))
