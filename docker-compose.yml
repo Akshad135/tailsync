@@ -1,9 +1,9 @@
 version: "3.8"
 
 services:
-  tailsync-brain:
+  tailsync:
     build: ./server
-    container_name: tailsync-brain
+    container_name: tailsync
     ports:
       - "8000:8000"
     restart: always

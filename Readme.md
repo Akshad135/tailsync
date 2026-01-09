@@ -14,8 +14,6 @@ TailSync is a simple, bi-directional clipboard synchronization tool designed to 
 
 ## 1. Server
 
-The server is the central hub. It is best run using Docker for a "set it and forget it" experience.
-
 ### Setup
 
 1. Ensure you have **Docker** and **Docker Compose** installed on your server.
