@@ -156,6 +156,7 @@ fun MainApp(
     // Collect settings from DataStore (async - may lag behind actual saved values)
     val serverUrl by settingsRepository.serverUrl.collectAsState(initial = "")
     val serverPort by settingsRepository.serverPort.collectAsState(initial = 8765)
+    val secureConnection by settingsRepository.secureConnection.collectAsState(initial = false)
     val autoConnect by settingsRepository.autoConnect.collectAsState(initial = true)
     val savedLastSyncedText by settingsRepository.lastSyncedText.collectAsState(initial = "")
     val savedLastSyncedTime by settingsRepository.lastSyncedTime.collectAsState(initial = 0L)
@@ -165,20 +166,25 @@ fun MainApp(
     // This fixes race condition on first install where user saves settings then immediately connects
     var pendingServerUrl by remember { mutableStateOf<String?>(null) }
     var pendingServerPort by remember { mutableStateOf<Int?>(null) }
+    var pendingSecureConnection by remember { mutableStateOf<Boolean?>(null) }
     
     // Clear pending values once DataStore Flow catches up
-    LaunchedEffect(serverUrl, serverPort) {
+    LaunchedEffect(serverUrl, serverPort, secureConnection) {
         if (pendingServerUrl != null && serverUrl == pendingServerUrl) {
             pendingServerUrl = null
         }
         if (pendingServerPort != null && serverPort == pendingServerPort) {
             pendingServerPort = null
         }
+        if (pendingSecureConnection != null && secureConnection == pendingSecureConnection) {
+            pendingSecureConnection = null
+        }
     }
     
     // Effective values: prefer pending (freshly saved) over Flow-collected
     val effectiveServerUrl = pendingServerUrl ?: serverUrl
     val effectiveServerPort = pendingServerPort ?: serverPort
+    val effectiveSecureConnection = pendingSecureConnection ?: secureConnection
 
     // Service state
     val service = getMainService()
@@ -221,7 +227,7 @@ fun MainApp(
                     onConnect = { 
                         // Use effective values (pending if available, otherwise Flow-collected)
                         // This ensures freshly saved settings are used immediately
-                        service?.connectWithUrl(effectiveServerUrl, effectiveServerPort)
+                        service?.connectWithUrl(effectiveServerUrl, effectiveServerPort, effectiveSecureConnection)
                     },
                     onDisconnect = { service?.disconnect() },
                     onClearHistory = { scope.launch { settingsRepository.clearHistory() } },
@@ -234,6 +240,7 @@ fun MainApp(
                 SettingsScreen(
                     serverUrl = effectiveServerUrl,
                     serverPort = effectiveServerPort,
+                    secureConnection = effectiveSecureConnection,
                     autoConnect = autoConnect,
                     isServiceRunning = service != null,
                     onSaveSettings = { url, port ->
@@ -247,6 +254,10 @@ fun MainApp(
                             settingsRepository.setServerUrl(url)
                             settingsRepository.setServerPort(port)
                         }
+                    },
+                    onSecureConnectionChange = { enabled ->
+                        pendingSecureConnection = enabled
+                        scope.launch { settingsRepository.setSecureConnection(enabled) }
                     },
                     onAutoConnectChange = { enabled ->
                         scope.launch { settingsRepository.setAutoConnect(enabled) }

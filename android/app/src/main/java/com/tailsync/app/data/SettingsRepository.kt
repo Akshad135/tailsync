@@ -22,6 +22,7 @@ class SettingsRepository(private val context: Context) {
     companion object {
         private val SERVER_URL = stringPreferencesKey("server_url")
         private val SERVER_PORT = intPreferencesKey("server_port")
+        private val SECURE_CONNECTION = booleanPreferencesKey("secure_connection")
         private val AUTO_CONNECT = booleanPreferencesKey("auto_connect")
         private val LAST_SYNCED_TEXT = stringPreferencesKey("last_synced_text")
         private val LAST_SYNCED_TIME = longPreferencesKey("last_synced_time")
@@ -38,6 +39,10 @@ class SettingsRepository(private val context: Context) {
 
     val serverPort: Flow<Int> = context.dataStore.data.map { preferences ->
         preferences[SERVER_PORT] ?: DEFAULT_PORT
+    }
+
+    val secureConnection: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SECURE_CONNECTION] ?: false
     }
 
     val autoConnect: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -66,6 +71,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun setServerPort(port: Int) {
         context.dataStore.edit { preferences ->
             preferences[SERVER_PORT] = port
+        }
+    }
+
+    suspend fun setSecureConnection(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SECURE_CONNECTION] = enabled
         }
     }
 

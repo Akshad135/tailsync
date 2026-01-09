@@ -6,7 +6,7 @@ TailSync is a clipboard synchronization tool designed to work over a **Tailscale
 
 ## 1. Server
 
-The server is a Python/FastAPI application distributed as a multi-architecture Docker image.
+The server is a Python/FastAPI application.
 
 ### Setup
 
@@ -60,7 +60,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-4. On the first run, enter your **Tailscale Server IP** and **Port** when prompted.
+On the first run, select your **Connection Type**, enter your **Tailscale Server IP** and **Port** when prompted.
 
 ---
 
@@ -71,15 +71,13 @@ The Android app uses a foreground service to maintain a persistent connection fo
 ### Setup
 
 1. Install the provided APK on your device.
-2. Open the app and enter your **Tailscale Server IP** and **Port** in the **Settings** screen.
-3. **Important**: Grant background clipboard access via ADB:
+2. Open the app -> go to the settings menu from top right <br>
+   -> Select your **Connection Type**, enter your **Server IP** and **Port** in the **Settings** screen.
+
+**Note:** With android 10 and above background access of clipboard is not possible, we can try to do it via ADB (Didn't try it yet):
 
 ```bash
 adb shell cmd appops set com.tailsync.app READ_CLIPBOARD allow
 ```
 
-### Features
-
-1. **Quick Settings Tile**: Add the "TailSync" tile to your notification shade for manual syncing.
-2. **Auto-Connect**: Automatically starts the sync service on device boot.
-3. **History**: View and copy your recently synced items from the dashboard.
+(Can also try to implement adb cmds via shizuku or use accessibility settings like Sefirah)

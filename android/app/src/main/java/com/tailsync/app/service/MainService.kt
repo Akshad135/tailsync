@@ -247,15 +247,16 @@ class MainService : Service() {
         scope.launch {
             val url = settingsRepository.serverUrl.first()
             val port = settingsRepository.serverPort.first()
-            connectWithUrl(url, port)
+            val secureConnection = settingsRepository.secureConnection.first()
+            connectWithUrl(url, port, secureConnection)
         }
     }
     
     /**
-     * Connect with explicit URL and port (bypasses DataStore read)
+     * Connect with explicit URL, port, and secure connection setting (bypasses DataStore read)
      * This is used after saving settings to ensure we use the new values
      */
-    fun connectWithUrl(url: String, port: Int) {
+    fun connectWithUrl(url: String, port: Int, secureConnection: Boolean = false) {
         if (url.isEmpty()) {
             // No URL configured - DashboardScreen will show appropriate feedback
             _connectionState.value = ConnectionState.DISCONNECTED
@@ -266,7 +267,7 @@ class MainService : Service() {
         _connectionState.value = ConnectionState.CONNECTING
         updateNotification()
         
-        webSocketManager.configure(url, port)
+        webSocketManager.configure(url, port, secureConnection)
         webSocketManager.resetReconnectAttempts()
         webSocketManager.connect()
     }
@@ -280,13 +281,14 @@ class MainService : Service() {
             if (_connectionState.value != ConnectionState.CONNECTED) {
                 val url = settingsRepository.serverUrl.first()
                 val port = settingsRepository.serverPort.first()
+                val secureConnection = settingsRepository.secureConnection.first()
                 
                 if (url.isEmpty()) {
                     _message.value = "Server not configured"
                     return@launch
                 }
                 
-                webSocketManager.configure(url, port)
+                webSocketManager.configure(url, port, secureConnection)
                 webSocketManager.resetReconnectAttempts()
                 webSocketManager.connect()
                 
@@ -319,13 +321,14 @@ class MainService : Service() {
             if (_connectionState.value != ConnectionState.CONNECTED) {
                 val url = settingsRepository.serverUrl.first()
                 val port = settingsRepository.serverPort.first()
+                val secureConnection = settingsRepository.secureConnection.first()
                 
                 if (url.isEmpty()) {
                     _message.value = "Server not configured"
                     return@launch
                 }
                 
-                webSocketManager.configure(url, port)
+                webSocketManager.configure(url, port, secureConnection)
                 webSocketManager.resetReconnectAttempts()
                 webSocketManager.connect()
                 

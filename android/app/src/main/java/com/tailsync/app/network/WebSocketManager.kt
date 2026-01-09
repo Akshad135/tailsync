@@ -36,6 +36,7 @@ class WebSocketManager {
 
     private var serverUrl: String = ""
     private var serverPort: Int = 8765
+    private var useSecureConnection: Boolean = false
     private var reconnectJob: Job? = null
     private var reconnectAttempts = 0
     private val maxReconnectAttempts = 3  // Only retry 3 times
@@ -45,9 +46,10 @@ class WebSocketManager {
     var onConnectionChanged: ((ConnectionState) -> Unit)? = null
     var onError: ((String, String) -> Unit)? = null  // title, details
 
-    fun configure(url: String, port: Int) {
+    fun configure(url: String, port: Int, secureConnection: Boolean = false) {
         serverUrl = url.trim()
         serverPort = port
+        useSecureConnection = secureConnection
     }
 
     fun connect() {
@@ -65,68 +67,83 @@ class WebSocketManager {
         _connectionState.value = ConnectionState.CONNECTING
         onConnectionChanged?.invoke(ConnectionState.CONNECTING)
 
-        val wsUrl = buildWebSocketUrl()
-        val request = Request.Builder()
-            .url(wsUrl)
-            .build()
+        try {
+            val wsUrl = buildWebSocketUrl()
+            val request = Request.Builder()
+                .url(wsUrl)
+                .build()
 
-        webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                reconnectAttempts = 0
-                _connectionState.value = ConnectionState.CONNECTED
-                onConnectionChanged?.invoke(ConnectionState.CONNECTED)
-            }
-
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                try {
-                    val json = JSONObject(text)
-                    val payload = ClipboardPayload(
-                        plainText = json.optString("plain_text", ""),
-                        htmlText = json.optString("html_text", null),
-                        timestamp = json.optLong("timestamp", System.currentTimeMillis()),
-                        source = json.optString("source", "server")
-                    )
-                    onClipboardReceived?.invoke(payload)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+            webSocket = client.newWebSocket(request, object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    reconnectAttempts = 0
+                    _connectionState.value = ConnectionState.CONNECTED
+                    onConnectionChanged?.invoke(ConnectionState.CONNECTED)
                 }
-            }
 
-            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                webSocket.close(1000, null)
-            }
-
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                _connectionState.value = ConnectionState.DISCONNECTED
-                onConnectionChanged?.invoke(ConnectionState.DISCONNECTED)
-                // Only reconnect if not manually disconnected
-                if (!isManualDisconnect) {
-                    scheduleReconnect()
-                }
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                val errorMessage = t.message ?: t.toString()
-                val errorDetails = buildString {
-                    appendLine("URL: ${buildWebSocketUrl()}")
-                    appendLine("Error: $errorMessage")
-                    response?.let {
-                        appendLine("Response Code: ${it.code}")
-                        appendLine("Response Message: ${it.message}")
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    try {
+                        val json = JSONObject(text)
+                        val payload = ClipboardPayload(
+                            plainText = json.optString("plain_text", ""),
+                            htmlText = json.optString("html_text", null),
+                            timestamp = json.optLong("timestamp", System.currentTimeMillis()),
+                            source = json.optString("source", "server")
+                        )
+                        onClipboardReceived?.invoke(payload)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
-                    appendLine("Stack Trace:")
-                    appendLine(t.stackTraceToString().take(500))
                 }
-                
-                _connectionState.value = ConnectionState.DISCONNECTED
-                onConnectionChanged?.invoke(ConnectionState.DISCONNECTED)
-                
-                // Only auto-reconnect if not manually disconnected
-                if (!isManualDisconnect) {
-                    scheduleReconnect(errorDetails)
+
+                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                    webSocket.close(1000, null)
                 }
+
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    _connectionState.value = ConnectionState.DISCONNECTED
+                    onConnectionChanged?.invoke(ConnectionState.DISCONNECTED)
+                    // Only reconnect if not manually disconnected
+                    if (!isManualDisconnect) {
+                        scheduleReconnect()
+                    }
+                }
+
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                    val errorMessage = t.message ?: t.toString()
+                    val errorDetails = buildString {
+                        appendLine("URL: ${buildWebSocketUrl()}")
+                        appendLine("Error: $errorMessage")
+                        response?.let {
+                            appendLine("Response Code: ${it.code}")
+                            appendLine("Response Message: ${it.message}")
+                        }
+                        appendLine("Stack Trace:")
+                        appendLine(t.stackTraceToString().take(500))
+                    }
+                    
+                    _connectionState.value = ConnectionState.DISCONNECTED
+                    onConnectionChanged?.invoke(ConnectionState.DISCONNECTED)
+                    
+                    // Only auto-reconnect if not manually disconnected
+                    if (!isManualDisconnect) {
+                        scheduleReconnect(errorDetails)
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            // Handle URL parsing errors or other exceptions
+            val errorDetails = buildString {
+                appendLine("Failed to create WebSocket connection")
+                appendLine("URL: ${serverUrl}:${serverPort}")
+                appendLine("Error: ${e.message ?: e.toString()}")
+                appendLine("Stack Trace:")
+                appendLine(e.stackTraceToString().take(500))
             }
-        })
+            
+            _connectionState.value = ConnectionState.DISCONNECTED
+            onConnectionChanged?.invoke(ConnectionState.DISCONNECTED)
+            onError?.invoke("Connection Failed", errorDetails)
+        }
     }
 
     private var isManualDisconnect = false
@@ -152,13 +169,19 @@ class WebSocketManager {
     }
 
     private fun buildWebSocketUrl(): String {
+        // Aggressively clean the URL - remove any invisible characters, BOM, zero-width spaces, etc.
         val cleanUrl = serverUrl
+            .trim()
+            .replace(Regex("[\\u0000-\\u001F\\u007F-\\u009F\\u200B-\\u200D\\uFEFF\\u2028\\u2029]"), "") // Remove control chars and zero-width
+            .replace(Regex("\\s+"), "") // Remove all whitespace
             .removePrefix("http://")
             .removePrefix("https://")
             .removePrefix("ws://")
             .removePrefix("wss://")
             .trimEnd('/')
-        return "ws://$cleanUrl:$serverPort/ws"
+            .trim()
+        val protocol = if (useSecureConnection) "wss" else "ws"
+        return "$protocol://$cleanUrl:$serverPort/ws"
     }
 
     private var lastErrorDetails: String = ""

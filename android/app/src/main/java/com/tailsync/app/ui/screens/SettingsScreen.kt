@@ -32,9 +32,11 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     serverUrl: String,
     serverPort: Int,
+    secureConnection: Boolean,
     autoConnect: Boolean,
     isServiceRunning: Boolean,
     onSaveSettings: (String, Int) -> Unit,
+    onSecureConnectionChange: (Boolean) -> Unit,
     onAutoConnectChange: (Boolean) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -93,6 +95,42 @@ fun SettingsScreen(
                 
                 GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(20.dp)) {
+                        // Secure Connection Toggle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Secure Connection",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (secureConnection) "Using wss://" else "Using ws://",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = secureConnection,
+                                onCheckedChange = { enabled ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onSecureConnectionChange(enabled)
+                                    snackbarState.showSuccess(
+                                        if (enabled) "Secure connection enabled" else "Secure connection disabled"
+                                    )
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                                )
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
                         OutlinedTextField(
                             value = urlInput,
                             onValueChange = { urlInput = it },
