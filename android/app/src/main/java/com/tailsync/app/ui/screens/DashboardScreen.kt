@@ -59,27 +59,30 @@ fun DashboardScreen(
     // Track connection state changes for feedback
     var previousState by remember { mutableStateOf(connectionState) }
     LaunchedEffect(connectionState) {
-        if (previousState != connectionState) {
-            when (connectionState) {
-                ConnectionState.CONNECTED -> {
+        // Always reset isConnecting when we reach a terminal state
+        when (connectionState) {
+            ConnectionState.CONNECTED -> {
+                isConnecting = false
+                if (previousState != ConnectionState.CONNECTED) {
                     snackbarState.showSuccess("Connected to server")
-                    isConnecting = false
                 }
-                ConnectionState.DISCONNECTED -> {
-                    if (previousState == ConnectionState.CONNECTED) {
-                        snackbarState.showWarning("Disconnected from server")
-                    }
-                    isConnecting = false
+            }
+            ConnectionState.DISCONNECTED -> {
+                isConnecting = false  // Always reset, even if state didn't change
+                if (previousState == ConnectionState.CONNECTED) {
+                    snackbarState.showWarning("Disconnected from server")
                 }
-                ConnectionState.CONNECTING -> {
-                    // No snackbar, status indicator shows this
-                }
-                ConnectionState.RECONNECTING -> {
+            }
+            ConnectionState.CONNECTING -> {
+                // No snackbar, status indicator shows this
+            }
+            ConnectionState.RECONNECTING -> {
+                if (previousState != ConnectionState.RECONNECTING) {
                     snackbarState.showInfo("Reconnecting...")
                 }
             }
-            previousState = connectionState
         }
+        previousState = connectionState
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -131,6 +134,15 @@ fun DashboardScreen(
                     isConnecting = true
                     snackbarState.showInfo("Connecting...")
                     onConnect()
+                    
+                    // Timeout: reset isConnecting if no state change after 5 seconds
+                    scope.launch {
+                        delay(5000)
+                        if (isConnecting && connectionState == ConnectionState.DISCONNECTED) {
+                            isConnecting = false
+                            snackbarState.showError("Connection failed", "Check server settings and try again")
+                        }
+                    }
                 },
                 onDisconnect = {
                     onDisconnect()

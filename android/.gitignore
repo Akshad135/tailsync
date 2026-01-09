@@ -1,0 +1,57 @@
+# --- Android / Kotlin Specific ---
+build/
+.gradle/
+local.properties
+*.apk
+*.aar
+*.ap_
+*.aab
+*.dex
+*.class
+.kotlin/
+
+# --- Android Studio / IntelliJ Specific ---
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries
+.idea/libraries
+.idea/caches
+.idea/deploymentTargetSelector.xml
+.idea/appInsightsSettings.xml
+.idea/modules.xml
+.idea/navigationalEditor.xml
+*.iml
+.navigation/
+captures/
+
+# --- Project Specific Artifacts ---
+# Ignore the release folder to prevent committing large APKs
+app/release/
+app/build/
+bin/
+gen/
+out/
+
+# --- Sensitive Files (Security) ---
+# Never commit your signing keys or service credentials
+*.jks
+*.keystore
+*.pem
+*.p12
+*.key
+google-services.json
+
+# --- Proguard ---
+app/proguard/
+proguard/
+
+# --- External Native Builds ---
+.externalNativeBuild
+.cxx/
+
+# --- OS Specific ---
+.DS_Store
+thumbs.db
+*.log

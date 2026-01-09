@@ -248,10 +248,15 @@ class MainService : Service() {
                     "Please configure server URL in Settings",
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
+                // Force state update to trigger UI refresh
                 _connectionState.value = ConnectionState.DISCONNECTED
                 updateNotification()
                 return@launch
             }
+            
+            // Force CONNECTING state to trigger UI updates
+            _connectionState.value = ConnectionState.CONNECTING
+            updateNotification()
             
             webSocketManager.configure(url, port)
             webSocketManager.resetReconnectAttempts()
