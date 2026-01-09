@@ -158,6 +158,7 @@ fun MainApp(
     val serverPort by settingsRepository.serverPort.collectAsState(initial = 8765)
     val secureConnection by settingsRepository.secureConnection.collectAsState(initial = false)
     val autoConnect by settingsRepository.autoConnect.collectAsState(initial = true)
+    val encryptionPassword by settingsRepository.encryptionPassword.collectAsState(initial = "")
     val savedLastSyncedText by settingsRepository.lastSyncedText.collectAsState(initial = "")
     val savedLastSyncedTime by settingsRepository.lastSyncedTime.collectAsState(initial = 0L)
     val clipboardHistory by settingsRepository.clipboardHistory.collectAsState(initial = emptyList())
@@ -167,9 +168,10 @@ fun MainApp(
     var pendingServerUrl by remember { mutableStateOf<String?>(null) }
     var pendingServerPort by remember { mutableStateOf<Int?>(null) }
     var pendingSecureConnection by remember { mutableStateOf<Boolean?>(null) }
+    var pendingEncryptionPassword by remember { mutableStateOf<String?>(null) }
     
     // Clear pending values once DataStore Flow catches up
-    LaunchedEffect(serverUrl, serverPort, secureConnection) {
+    LaunchedEffect(serverUrl, serverPort, secureConnection, encryptionPassword) {
         if (pendingServerUrl != null && serverUrl == pendingServerUrl) {
             pendingServerUrl = null
         }
@@ -179,12 +181,16 @@ fun MainApp(
         if (pendingSecureConnection != null && secureConnection == pendingSecureConnection) {
             pendingSecureConnection = null
         }
+        if (pendingEncryptionPassword != null && encryptionPassword == pendingEncryptionPassword) {
+            pendingEncryptionPassword = null
+        }
     }
     
     // Effective values: prefer pending (freshly saved) over Flow-collected
     val effectiveServerUrl = pendingServerUrl ?: serverUrl
     val effectiveServerPort = pendingServerPort ?: serverPort
     val effectiveSecureConnection = pendingSecureConnection ?: secureConnection
+    val effectiveEncryptionPassword = pendingEncryptionPassword ?: encryptionPassword
 
     // Service state
     val service = getMainService()
@@ -227,7 +233,7 @@ fun MainApp(
                     onConnect = { 
                         // Use effective values (pending if available, otherwise Flow-collected)
                         // This ensures freshly saved settings are used immediately
-                        service?.connectWithUrl(effectiveServerUrl, effectiveServerPort, effectiveSecureConnection)
+                        service?.connectWithUrl(effectiveServerUrl, effectiveServerPort, effectiveSecureConnection, effectiveEncryptionPassword)
                     },
                     onDisconnect = { service?.disconnect() },
                     onClearHistory = { scope.launch { settingsRepository.clearHistory() } },
@@ -242,17 +248,23 @@ fun MainApp(
                     serverPort = effectiveServerPort,
                     secureConnection = effectiveSecureConnection,
                     autoConnect = autoConnect,
+                    encryptionPassword = effectiveEncryptionPassword,
                     isServiceRunning = service != null,
-                    onSaveSettings = { url, port ->
+                    onSaveSettings = { url, port, password ->
                         // Set pending values IMMEDIATELY (synchronous) before DataStore write
                         // This ensures they're available for connection even before Flow emits
                         pendingServerUrl = url
                         pendingServerPort = port
+                        pendingEncryptionPassword = password
+                        
+                        // Update encryption key immediately if already connected
+                        service?.updateEncryptionPassword(password)
                         
                         // Then persist to DataStore (async)
                         scope.launch {
                             settingsRepository.setServerUrl(url)
                             settingsRepository.setServerPort(port)
+                            settingsRepository.setEncryptionPassword(password)
                         }
                     },
                     onSecureConnectionChange = { enabled ->

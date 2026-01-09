@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import okhttp3.*
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import com.tailsync.app.crypto.FernetCrypto
 
 enum class ConnectionState {
     DISCONNECTED,
@@ -37,6 +38,7 @@ class WebSocketManager {
     private var serverUrl: String = ""
     private var serverPort: Int = 8765
     private var useSecureConnection: Boolean = false
+    private var encryptionKey: ByteArray? = null  // Derived from password
     private var reconnectJob: Job? = null
     private var reconnectAttempts = 0
     private val maxReconnectAttempts = 3  // Only retry 3 times
@@ -46,10 +48,39 @@ class WebSocketManager {
     var onConnectionChanged: ((ConnectionState) -> Unit)? = null
     var onError: ((String, String) -> Unit)? = null  // title, details
 
-    fun configure(url: String, port: Int, secureConnection: Boolean = false) {
+    fun configure(url: String, port: Int, secureConnection: Boolean = false, encryptionPassword: String = "") {
         serverUrl = url.trim()
         serverPort = port
         useSecureConnection = secureConnection
+        
+        // Derive encryption key from password (if provided)
+        encryptionKey = if (encryptionPassword.isNotEmpty()) {
+            try {
+                FernetCrypto.deriveKey(encryptionPassword)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Update encryption password without reconnecting.
+     * Call this when the user saves a new password while already connected.
+     */
+    fun updateEncryptionPassword(encryptionPassword: String) {
+        encryptionKey = if (encryptionPassword.isNotEmpty()) {
+            try {
+                FernetCrypto.deriveKey(encryptionPassword)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        } else {
+            null
+        }
     }
 
     fun connect() {
@@ -83,9 +114,49 @@ class WebSocketManager {
                 override fun onMessage(webSocket: WebSocket, text: String) {
                     try {
                         val json = JSONObject(text)
+                        
+                        // Decrypt content if encryption is enabled
+                        val plainText: String
+                        val htmlText: String?
+                        
+                        val key = encryptionKey
+                        if (key != null) {
+                            // Decrypt encrypted content
+                            val encryptedPlain = json.optString("plain_text", "")
+                            val encryptedHtml = json.optString("html_text", null)
+                            
+                            plainText = if (encryptedPlain.isNotEmpty() && FernetCrypto.looksLikeFernetToken(encryptedPlain)) {
+                                try {
+                                    FernetCrypto.decrypt(encryptedPlain, key)
+                                } catch (e: Exception) {
+                                    // Decryption failed - wrong password or corrupted data
+                                    e.printStackTrace()
+                                    onError?.invoke("Decryption Failed", "Could not decrypt message. Check that the encryption password matches.\n\n${e.message}")
+                                    return
+                                }
+                            } else {
+                                // Not encrypted or empty - use as-is
+                                encryptedPlain
+                            }
+                            
+                            htmlText = if (!encryptedHtml.isNullOrEmpty() && FernetCrypto.looksLikeFernetToken(encryptedHtml)) {
+                                try {
+                                    FernetCrypto.decrypt(encryptedHtml, key)
+                                } catch (e: Exception) {
+                                    null  // Silently skip HTML if decryption fails
+                                }
+                            } else {
+                                encryptedHtml
+                            }
+                        } else {
+                            // No encryption - use plain values
+                            plainText = json.optString("plain_text", "")
+                            htmlText = json.optString("html_text", null)
+                        }
+                        
                         val payload = ClipboardPayload(
-                            plainText = json.optString("plain_text", ""),
-                            htmlText = json.optString("html_text", null),
+                            plainText = plainText,
+                            htmlText = htmlText,
                             timestamp = json.optLong("timestamp", System.currentTimeMillis()),
                             source = json.optString("source", "server")
                         )
@@ -159,9 +230,43 @@ class WebSocketManager {
     }
 
     fun sendClipboard(plainText: String, htmlText: String?) {
+        val key = encryptionKey
+        
+        val finalPlainText: String
+        val finalHtmlText: Any  // String or JSONObject.NULL
+        
+        if (key != null) {
+            // IMPORTANT: Check if the input is already encrypted to prevent double-encryption
+            if (FernetCrypto.looksLikeFernetToken(plainText)) {
+                finalPlainText = plainText
+            } else {
+                // Encrypt content before sending
+                finalPlainText = try {
+                    FernetCrypto.encrypt(plainText, key)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    plainText  // Fallback to unencrypted if encryption fails
+                }
+            }
+            
+            finalHtmlText = if (htmlText != null) {
+                try {
+                    FernetCrypto.encrypt(htmlText, key)
+                } catch (e: Exception) {
+                    JSONObject.NULL  // Skip HTML if encryption fails
+                }
+            } else {
+                JSONObject.NULL
+            }
+        } else {
+            // No encryption - send plain values
+            finalPlainText = plainText
+            finalHtmlText = htmlText ?: JSONObject.NULL
+        }
+        
         val json = JSONObject().apply {
-            put("plain_text", plainText)
-            put("html_text", htmlText ?: JSONObject.NULL)
+            put("plain_text", finalPlainText)
+            put("html_text", finalHtmlText)
             put("timestamp", System.currentTimeMillis())
             put("source", "android")
         }

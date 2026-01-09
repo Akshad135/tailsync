@@ -248,7 +248,8 @@ class MainService : Service() {
             val url = settingsRepository.serverUrl.first()
             val port = settingsRepository.serverPort.first()
             val secureConnection = settingsRepository.secureConnection.first()
-            connectWithUrl(url, port, secureConnection)
+            val encryptionPassword = settingsRepository.encryptionPassword.first()
+            connectWithUrl(url, port, secureConnection, encryptionPassword)
         }
     }
     
@@ -256,7 +257,7 @@ class MainService : Service() {
      * Connect with explicit URL, port, and secure connection setting (bypasses DataStore read)
      * This is used after saving settings to ensure we use the new values
      */
-    fun connectWithUrl(url: String, port: Int, secureConnection: Boolean = false) {
+    fun connectWithUrl(url: String, port: Int, secureConnection: Boolean = false, encryptionPassword: String = "") {
         if (url.isEmpty()) {
             // No URL configured - DashboardScreen will show appropriate feedback
             _connectionState.value = ConnectionState.DISCONNECTED
@@ -267,7 +268,7 @@ class MainService : Service() {
         _connectionState.value = ConnectionState.CONNECTING
         updateNotification()
         
-        webSocketManager.configure(url, port, secureConnection)
+        webSocketManager.configure(url, port, secureConnection, encryptionPassword)
         webSocketManager.resetReconnectAttempts()
         webSocketManager.connect()
     }
@@ -276,19 +277,28 @@ class MainService : Service() {
         webSocketManager.disconnect()
     }
 
+    /**
+     * Update encryption password on the fly (without reconnecting).
+     * Call this when user saves settings while already connected.
+     */
+    fun updateEncryptionPassword(password: String) {
+        webSocketManager.updateEncryptionPassword(password)
+    }
+
     fun syncClipboardNow() {
         scope.launch {
             if (_connectionState.value != ConnectionState.CONNECTED) {
                 val url = settingsRepository.serverUrl.first()
                 val port = settingsRepository.serverPort.first()
                 val secureConnection = settingsRepository.secureConnection.first()
+                val encryptionPassword = settingsRepository.encryptionPassword.first()
                 
                 if (url.isEmpty()) {
                     _message.value = "Server not configured"
                     return@launch
                 }
                 
-                webSocketManager.configure(url, port, secureConnection)
+                webSocketManager.configure(url, port, secureConnection, encryptionPassword)
                 webSocketManager.resetReconnectAttempts()
                 webSocketManager.connect()
                 
@@ -322,13 +332,14 @@ class MainService : Service() {
                 val url = settingsRepository.serverUrl.first()
                 val port = settingsRepository.serverPort.first()
                 val secureConnection = settingsRepository.secureConnection.first()
+                val encryptionPassword = settingsRepository.encryptionPassword.first()
                 
                 if (url.isEmpty()) {
                     _message.value = "Server not configured"
                     return@launch
                 }
                 
-                webSocketManager.configure(url, port, secureConnection)
+                webSocketManager.configure(url, port, secureConnection, encryptionPassword)
                 webSocketManager.resetReconnectAttempts()
                 webSocketManager.connect()
                 

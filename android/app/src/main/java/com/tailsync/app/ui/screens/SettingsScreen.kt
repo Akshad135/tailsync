@@ -21,6 +21,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.tailsync.app.ui.components.TailSyncSnackbarHost
 import com.tailsync.app.ui.components.rememberSnackbarState
@@ -34,8 +36,9 @@ fun SettingsScreen(
     serverPort: Int,
     secureConnection: Boolean,
     autoConnect: Boolean,
+    encryptionPassword: String,
     isServiceRunning: Boolean,
-    onSaveSettings: (String, Int) -> Unit,
+    onSaveSettings: (String, Int, String) -> Unit,
     onSecureConnectionChange: (Boolean) -> Unit,
     onAutoConnectChange: (Boolean) -> Unit,
     onNavigateBack: () -> Unit,
@@ -48,6 +51,8 @@ fun SettingsScreen(
     
     var urlInput by remember(serverUrl) { mutableStateOf(serverUrl) }
     var portInput by remember(serverPort) { mutableStateOf(serverPort.toString()) }
+    var passwordInput by remember(encryptionPassword) { mutableStateOf(encryptionPassword) }
+    var passwordVisible by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     
     // Battery optimization status
@@ -170,6 +175,35 @@ fun SettingsScreen(
                             )
                         )
 
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Encryption Password
+                        OutlinedTextField(
+                            value = passwordInput,
+                            onValueChange = { passwordInput = it },
+                            label = { Text("Encryption Password") },
+                            placeholder = { Text("Leave empty for no encryption") },
+                            leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
+                            trailingIcon = {
+                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Icon(
+                                        if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                        contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                                    )
+                                }
+                            },
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            singleLine = true,
+                            supportingText = { Text("Must match password on desktop client") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = TailSyncPrimary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                cursorColor = TailSyncPrimary
+                            )
+                        )
+
                         Spacer(modifier = Modifier.height(20.dp))
 
                         Button(
@@ -189,8 +223,8 @@ fun SettingsScreen(
                                     
                                     isSaving = true
                                     try {
-                                        // Save both settings at once
-                                        onSaveSettings(urlInput, port)
+                                        // Save all settings at once
+                                        onSaveSettings(urlInput, port, passwordInput)
                                         snackbarState.showSuccess("Configuration saved!")
                                     } catch (e: Exception) {
                                         snackbarState.showError("Failed to save", e.message ?: e.toString())
@@ -330,7 +364,7 @@ fun SettingsScreen(
                 
                 GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        InfoRow(label = "App Version", value = "1.2.4")
+                        InfoRow(label = "App Version", value = "1.2.6")
                         Spacer(modifier = Modifier.height(12.dp))
                         InfoRow(label = "Package", value = "com.tailsync.app")
                     }

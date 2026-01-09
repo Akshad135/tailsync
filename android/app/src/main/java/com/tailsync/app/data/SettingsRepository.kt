@@ -27,6 +27,7 @@ class SettingsRepository(private val context: Context) {
         private val LAST_SYNCED_TEXT = stringPreferencesKey("last_synced_text")
         private val LAST_SYNCED_TIME = longPreferencesKey("last_synced_time")
         private val CLIPBOARD_HISTORY = stringPreferencesKey("clipboard_history")
+        private val ENCRYPTION_PASSWORD = stringPreferencesKey("encryption_password")
 
         const val DEFAULT_PORT = 8000
         const val DEFAULT_URL = ""
@@ -57,6 +58,10 @@ class SettingsRepository(private val context: Context) {
         preferences[LAST_SYNCED_TIME] ?: 0L
     }
 
+    val encryptionPassword: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[ENCRYPTION_PASSWORD] ?: ""
+    }
+
     val clipboardHistory: Flow<List<ClipboardHistoryItem>> = context.dataStore.data.map { preferences ->
         val json = preferences[CLIPBOARD_HISTORY] ?: "[]"
         parseHistoryJson(json)
@@ -83,6 +88,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun setAutoConnect(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[AUTO_CONNECT] = enabled
+        }
+    }
+
+    suspend fun setEncryptionPassword(password: String) {
+        context.dataStore.edit { preferences ->
+            preferences[ENCRYPTION_PASSWORD] = password
         }
     }
 

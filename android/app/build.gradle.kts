@@ -89,6 +89,9 @@ dependencies {
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
+    // BouncyCastle for Fernet-compatible encryption
+    implementation("org.bouncycastle:bcprov-jdk15on:1.70")
+
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
