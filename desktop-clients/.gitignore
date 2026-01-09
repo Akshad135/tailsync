@@ -1,0 +1,18 @@
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# Local configuration (Contains personal server IP/Port)
+config.json
+
+# Python environment & cache
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# OS-specific files
+.DS_Store
+Thumbs.db
