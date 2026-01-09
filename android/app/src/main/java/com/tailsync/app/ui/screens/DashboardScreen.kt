@@ -53,35 +53,34 @@ fun DashboardScreen(
     
     var isSyncing by remember { mutableStateOf(false) }
     var isConnecting by remember { mutableStateOf(false) }
+    
+    // Track if user explicitly clicked the Connect button (vs auto-connect on app start)
+    var userInitiatedConnect by remember { mutableStateOf(false) }
 
     // Track connection state changes
-    var hasShownInitialState by remember { mutableStateOf(false) }
     var previousState by remember { mutableStateOf<ConnectionState?>(null) }
-    var hasShownConfigurePrompt by remember { mutableStateOf(false) }
-    
-    // Show prompt to configure server on first load if not configured
-    LaunchedEffect(serverUrl) {
-        if (!hasShownConfigurePrompt && serverUrl.isEmpty()) {
-            hasShownConfigurePrompt = true
-            snackbarState.showInfo("Configure server IP in Settings to get started")
-        }
-    }
     
     LaunchedEffect(connectionState) {
-        if (!hasShownInitialState) {
-            hasShownInitialState = true
+        // Skip the very first state update (initial app state)
+        if (previousState == null) {
             previousState = connectionState
             return@LaunchedEffect
         }
         
+        // Only show toasts if the state actually changed
         if (previousState != connectionState) {
             when (connectionState) {
                 ConnectionState.CONNECTED -> {
                     isConnecting = false
-                    snackbarState.showSuccess("Connected to server")
+                    // Only show "Connected" toast if user explicitly clicked Connect
+                    if (userInitiatedConnect) {
+                        snackbarState.showSuccess("Connected to server")
+                        userInitiatedConnect = false
+                    }
                 }
                 ConnectionState.DISCONNECTED -> {
                     isConnecting = false
+                    // Only show "Disconnected" if we were previously connected (lost connection)
                     if (previousState == ConnectionState.CONNECTED) {
                         snackbarState.showWarning("Disconnected from server")
                     }
@@ -131,6 +130,15 @@ fun DashboardScreen(
             isSyncing = isSyncing,
             onConnect = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                
+                // Check if server URL is configured before attempting to connect
+                if (serverUrl.isBlank()) {
+                    snackbarState.showWarning("Please configure server IP in Settings")
+                    return@FloatingBottomBar
+                }
+                
+                // Mark this as a user-initiated connection (to show "Connected" toast later)
+                userInitiatedConnect = true
                 isConnecting = true
                 snackbarState.showInfo("Connecting...")
                 onConnect()
@@ -139,6 +147,7 @@ fun DashboardScreen(
                     delay(10000)
                     if (isConnecting && connectionState == ConnectionState.DISCONNECTED) {
                         isConnecting = false
+                        userInitiatedConnect = false
                         snackbarState.showError("Connection failed", "Check server settings")
                     }
                 }

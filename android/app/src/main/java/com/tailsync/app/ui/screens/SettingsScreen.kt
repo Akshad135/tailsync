@@ -292,7 +292,7 @@ fun SettingsScreen(
                 
                 GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        InfoRow(label = "App Version", value = "1.2.3")
+                        InfoRow(label = "App Version", value = "1.2.4")
                         Spacer(modifier = Modifier.height(12.dp))
                         InfoRow(label = "Package", value = "com.tailsync.app")
                     }
