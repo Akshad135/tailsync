@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger("TailSync")
 
 # --- CONFIGURATION ---
-MAX_PAYLOAD_SIZE = 10 * 1024 * 1024 
+MAX_PAYLOAD_SIZE = 10 * 1024 * 1024
 
 class ConnectionManager:
     def __init__(self):
@@ -49,7 +49,7 @@ class ConnectionManager:
             pass
 
         targets = [conn for conn in self.active_connections if conn != sender]
-        
+
         for connection in targets:
             try:
                 await connection.send_text(message)
@@ -80,9 +80,9 @@ async def server_heartbeat():
 async def lifespan(app: FastAPI):
     logger.info("TailSync Server starting up...")
     heartbeat_task = asyncio.create_task(server_heartbeat())
-    
+
     yield
-    
+
     logger.info("TailSync Server shutting down...")
     heartbeat_task.cancel()
     try:
@@ -102,7 +102,7 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            
+
             # --- SECURITY CHECK ---
             payload_size = len(data)
             if payload_size > MAX_PAYLOAD_SIZE:
@@ -118,11 +118,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 if "source" in parsed:
                     source = parsed.get("source")
                     logger.info(f"RECV: Update from [{source}] | Size: {payload_size} bytes")
-                    
+
                     await manager.broadcast(data, sender=websocket)
             except json.JSONDecodeError:
                 logger.warning("Received invalid JSON data")
-                
+
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as e:
