@@ -2,6 +2,12 @@
 
 TailSync is a clipboard synchronization tool designed to work over a **Tailscale** network. It allows you to share copied text and HTML between Android, Windows, Linux, and a central server.
 
+### Features
+
+- **End-to-End Encryption (E2EE)**: All clipboard data is encrypted using AES-256 (PBKDF2HMAC) with a shared password before transmission. Your data remains private and unreadable by the server.
+- **Secure & Standard Connectivity**: Flexible support for both Secure (WSS) and Standard (WS) WebSocket connections, accommodating various network configurations (VPN, Local, Public).
+- **Format Preservation**: Retains authentic rich text formatting (HTML) alongside plain text, ensuring copied code, links, and styled text look exactly the same on all devices.
+
 ---
 
 ## 1. Server
@@ -60,7 +66,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-On the first run, select your **Connection Type**, enter your **Tailscale Server IP** and **Port** when prompted.
+On the first run, you will be prompted to select your **Connection Type**, enter your **Tailscale Server IP**, **Port**, and **Encryption Password**.
 
 ---
 
@@ -72,7 +78,7 @@ The Android app uses a foreground service to maintain a persistent connection fo
 
 1. Install the provided APK on your device.
 2. Open the app -> go to the settings menu from top right <br>
-   -> Select your **Connection Type**, enter your **Server IP** and **Port** in the **Settings** screen.
+   -> Select your **Connection Type**, enter your **Server IP**, **Port**, and **Encryption Password** in the **Settings** screen.
 
 **Note:** With android 10 and above background access of clipboard is not possible, we can try to do it via ADB (Didn't try it yet):
 

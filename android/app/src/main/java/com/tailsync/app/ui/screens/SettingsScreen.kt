@@ -182,7 +182,7 @@ fun SettingsScreen(
                             value = passwordInput,
                             onValueChange = { passwordInput = it },
                             label = { Text("Encryption Password") },
-                            placeholder = { Text("Leave empty for no encryption") },
+                            placeholder = { Text("Required for encryption") },
                             leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
                             trailingIcon = {
                                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -218,6 +218,11 @@ fun SettingsScreen(
                                     val port = portInput.toIntOrNull()
                                     if (port == null || port < 1 || port > 65535) {
                                         snackbarState.showError("Port must be between 1 and 65535")
+                                        return@launch
+                                    }
+                                    
+                                    if (passwordInput.isBlank()) {
+                                        snackbarState.showError("Encryption password is required")
                                         return@launch
                                     }
                                     
