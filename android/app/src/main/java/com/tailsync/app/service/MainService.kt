@@ -257,9 +257,7 @@ class MainService : Service() {
      */
     fun connectWithUrl(url: String, port: Int) {
         if (url.isEmpty()) {
-            // Emit error to UI via state (NOT Toast)
-            _errorTitle.value = "Server not configured"
-            _errorDetails.value = "Please enter the Tailscale IP address in Settings"
+            // No URL configured - DashboardScreen will show appropriate feedback
             _connectionState.value = ConnectionState.DISCONNECTED
             updateNotification()
             return

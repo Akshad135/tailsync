@@ -153,13 +153,32 @@ fun MainApp(
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
 
-    // Collect settings
+    // Collect settings from DataStore (async - may lag behind actual saved values)
     val serverUrl by settingsRepository.serverUrl.collectAsState(initial = "")
     val serverPort by settingsRepository.serverPort.collectAsState(initial = 8765)
     val autoConnect by settingsRepository.autoConnect.collectAsState(initial = true)
     val savedLastSyncedText by settingsRepository.lastSyncedText.collectAsState(initial = "")
     val savedLastSyncedTime by settingsRepository.lastSyncedTime.collectAsState(initial = 0L)
     val clipboardHistory by settingsRepository.clipboardHistory.collectAsState(initial = emptyList())
+
+    // Pending state: stores freshly saved values BEFORE DataStore Flow catches up
+    // This fixes race condition on first install where user saves settings then immediately connects
+    var pendingServerUrl by remember { mutableStateOf<String?>(null) }
+    var pendingServerPort by remember { mutableStateOf<Int?>(null) }
+    
+    // Clear pending values once DataStore Flow catches up
+    LaunchedEffect(serverUrl, serverPort) {
+        if (pendingServerUrl != null && serverUrl == pendingServerUrl) {
+            pendingServerUrl = null
+        }
+        if (pendingServerPort != null && serverPort == pendingServerPort) {
+            pendingServerPort = null
+        }
+    }
+    
+    // Effective values: prefer pending (freshly saved) over Flow-collected
+    val effectiveServerUrl = pendingServerUrl ?: serverUrl
+    val effectiveServerPort = pendingServerPort ?: serverPort
 
     // Service state
     val service = getMainService()
@@ -197,10 +216,12 @@ fun MainApp(
                 DashboardScreen(
                     connectionState = connectionState,
                     clipboardHistory = clipboardHistory,
+                    serverUrl = effectiveServerUrl,
                     onSyncNow = { service?.syncClipboardNow() },
                     onConnect = { 
-                        // Pass current URL/port directly to avoid stale DataStore reads
-                        service?.connectWithUrl(serverUrl, serverPort)
+                        // Use effective values (pending if available, otherwise Flow-collected)
+                        // This ensures freshly saved settings are used immediately
+                        service?.connectWithUrl(effectiveServerUrl, effectiveServerPort)
                     },
                     onDisconnect = { service?.disconnect() },
                     onClearHistory = { scope.launch { settingsRepository.clearHistory() } },
@@ -211,11 +232,17 @@ fun MainApp(
 
             composable(Screen.Settings.route) {
                 SettingsScreen(
-                    serverUrl = serverUrl,
-                    serverPort = serverPort,
+                    serverUrl = effectiveServerUrl,
+                    serverPort = effectiveServerPort,
                     autoConnect = autoConnect,
                     isServiceRunning = service != null,
                     onSaveSettings = { url, port ->
+                        // Set pending values IMMEDIATELY (synchronous) before DataStore write
+                        // This ensures they're available for connection even before Flow emits
+                        pendingServerUrl = url
+                        pendingServerPort = port
+                        
+                        // Then persist to DataStore (async)
                         scope.launch {
                             settingsRepository.setServerUrl(url)
                             settingsRepository.setServerPort(port)

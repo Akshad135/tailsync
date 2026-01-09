@@ -38,6 +38,7 @@ import java.util.*
 fun DashboardScreen(
     connectionState: ConnectionState,
     clipboardHistory: List<ClipboardHistoryItem>,
+    serverUrl: String,
     onSyncNow: () -> Unit,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
@@ -56,6 +57,15 @@ fun DashboardScreen(
     // Track connection state changes
     var hasShownInitialState by remember { mutableStateOf(false) }
     var previousState by remember { mutableStateOf<ConnectionState?>(null) }
+    var hasShownConfigurePrompt by remember { mutableStateOf(false) }
+    
+    // Show prompt to configure server on first load if not configured
+    LaunchedEffect(serverUrl) {
+        if (!hasShownConfigurePrompt && serverUrl.isEmpty()) {
+            hasShownConfigurePrompt = true
+            snackbarState.showInfo("Configure server IP in Settings to get started")
+        }
+    }
     
     LaunchedEffect(connectionState) {
         if (!hasShownInitialState) {

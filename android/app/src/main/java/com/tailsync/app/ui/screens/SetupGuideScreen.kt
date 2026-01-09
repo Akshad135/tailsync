@@ -160,7 +160,7 @@ fun SetupGuideScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            StepCard(5, "Verify & Enjoy", "Clipboard sync will now work in the background. You can disconnect USB and disable debugging.")
+            StepCard(5, "Complete Setup", "Disconnect USB and disable debugging. Clipboard sync will now work in the background.")
 
             Spacer(modifier = Modifier.height(24.dp))
 
